@@ -2,70 +2,55 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
+import { AuthProvider, useAuth } from "../../context/AuthContext";
 
-export default function Register() {
-  const [nombre, setNombre] = useState("");
+export default function Login() {
   const [correo, setCorreo] = useState("");
   const [pass, setPass] = useState("");
   const router = useRouter();
+  const { login } = useAuth();
 
-  const handleRegister = async () => {
-    if (!nombre || !correo || !pass) {
-      return Alert.alert("Error", "Todos los campos son obligatorios.");
-    }
-
+  const handleLogin = async () => {
     try {
-      const response = await axios.post("http://192.168.100.150:3000/api/usuarios/register", {
-        nombre,
+      const response = await axios.post("http://192.168.100.150:3000/api/usuarios/login", {
         correo,
         pass,
       });
-
-      if (response.data.mensaje) {
-        Alert.alert("✅ Registro exitoso", "Ya puedes iniciar sesión en CineTrack.");
-        router.push("/login");
-      }
+      Alert.alert("🎬 Éxito", "Login exitoso. Bienvenido a CineTrack.");
+      login(correo);
+      router.push("/Dashboard");
     } catch (error) {
-      Alert.alert("Error", "No se pudo completar el registro. Verifica tus datos.");
+      Alert.alert("Error", "Correo o contraseña incorrectos");
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🎬 Crear cuenta</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nombre completo"
-        placeholderTextColor="#aaa"
-        value={nombre}
-        onChangeText={setNombre}
-      />
+      <Text style={styles.logo}>🎬 CineTrack</Text>
+      <Text style={styles.subtitle}>Tu universo cinematográfico, siempre contigo.</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Correo electrónico"
         placeholderTextColor="#aaa"
-        keyboardType="email-address"
-        value={correo}
         onChangeText={setCorreo}
+        value={correo}
       />
-
       <TextInput
         style={styles.input}
         placeholder="Contraseña"
         placeholderTextColor="#aaa"
         secureTextEntry
-        value={pass}
         onChangeText={setPass}
+        value={pass}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Registrarse</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        <Text style={styles.buttonText}>Iniciar Sesión</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/login")}>
-        <Text style={styles.link}>¿Ya tienes cuenta? Inicia sesión</Text>
+      <TouchableOpacity onPress={() => router.push("/registrer")}>
+        <Text style={styles.link}>¿No tenés cuenta? Registrate</Text>
       </TouchableOpacity>
     </View>
   );
@@ -79,11 +64,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  title: {
+  logo: {
     color: "#3FB7FF",
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 10,
+  },
+  subtitle: {
+    color: "#ccc",
+    textAlign: "center",
+    marginBottom: 40,
   },
   input: {
     backgroundColor: "#1A1A1A",
@@ -95,9 +85,10 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor: "#3FB7FF",
-    padding: 14,
+    padding: 15,
     borderRadius: 8,
     width: "100%",
+    marginTop: 10,
   },
   buttonText: {
     color: "#fff",
@@ -107,5 +98,6 @@ const styles = StyleSheet.create({
   link: {
     color: "#3FB7FF",
     marginTop: 20,
+    fontSize: 14,
   },
 });

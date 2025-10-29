@@ -7,7 +7,7 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       {/*  Logo CineTrack */}
-      <Image source={require("../assets/images/cinetrack-logo.png")} style={styles.logo} />
+      <Image source={require("../../assets/images/cinetrack-logo.png")} style={styles.logo} />
 
       {/* Eslogan en dos líneas */}
       <View style={styles.sloganContainer}>
@@ -25,6 +25,7 @@ export default function HomeScreen() {
         <Text style={styles.buttonOutlineText}>Crear Cuenta</Text>
       </TouchableOpacity>
     </View>
+
   );
 }
 
