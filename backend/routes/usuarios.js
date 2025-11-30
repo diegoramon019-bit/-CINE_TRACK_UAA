@@ -1,106 +1,148 @@
 import express from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import db from "../db.js";
+import bcrypt from "bcryptjs";
+import multer from "multer";
+import path from "path";
 
 const router = express.Router();
 
-/**
- *  REGISTRO DE USUARIO
- */
+/* 
+   REGISTRO DE USUARIO
+*/
 router.post("/register", async (req, res) => {
   const { nombre, correo, pass } = req.body;
 
-  if (!nombre || !correo || !pass) {
-    return res.status(400).json({ error: "Todos los campos son obligatorios" });
-  }
-
   try {
-    //  Verificar si existe la tabla 'usuario'
-    await db.promise().query("DESCRIBE usuario");
+    if (!nombre || !correo || !pass)
+      return res.status(400).json({ error: "Todos los campos son obligatorios" });
 
-    // Verificar si el usuario ya existe
-    const [existing] = await db.promise().query(
-      "SELECT * FROM usuario WHERE correo = ?",
-      [correo]
-    );
-
-    if (existing.length > 0) {
+    const [existente] = await db.query("SELECT * FROM usuario WHERE correo = ?", [correo]);
+    if (existente.length > 0)
       return res.status(409).json({ error: "El correo ya está registrado" });
-    }
 
-    //  Encriptar contraseña
-    const hashedPass = await bcrypt.hash(pass, 10);
+    const hashed = await bcrypt.hash(pass, 10);
+    await db.query("INSERT INTO usuario (nombre, correo, pass) VALUES (?, ?, ?)", [
+      nombre,
+      correo,
+      hashed,
+    ]);
 
-    //  Insertar usuario
-    const [result] = await db.promise().query(
-      "INSERT INTO usuario (nombre, correo, pass) VALUES (?, ?, ?)",
-      [nombre, correo, hashedPass]
-    );
-
-    if (result.affectedRows > 0) {
-      console.log(` Usuario registrado: ${correo}`);
-      res.status(201).json({ mensaje: "Usuario registrado correctamente" });
-    } else {
-      res.status(500).json({ error: "No se pudo registrar el usuario" });
-    }
+    res.status(201).json({ message: "Usuario registrado con éxito" });
   } catch (error) {
-    console.error("⚠️ Error detallado en /register:", error);
-    res.status(500).json({ error: error.message });
+    console.error("Error en /register:", error.message);
+    res.status(500).json({ error: "Error en el registro" });
   }
 });
 
-/**
- * LOGIN DE USUARIO
+/* 
+   LOGIN DE USUARIO
  */
 router.post("/login", async (req, res) => {
   const { correo, pass } = req.body;
 
-  if (!correo || !pass) {
-    return res.status(400).json({ error: "Correo y contraseña son obligatorios" });
-  }
-
   try {
-    //  Verificar que la tabla exista
-    await db.promise().query("DESCRIBE usuario");
+    if (!correo || !pass)
+      return res.status(400).json({ error: "Correo y contraseña son requeridos" });
 
-    //  Buscar el usuario
-    const [rows] = await db.promise().query(
-      "SELECT * FROM usuario WHERE correo = ?",
-      [correo]
-    );
+    const [rows] = await db.query("SELECT * FROM usuario WHERE correo = ?", [correo]);
+    if (rows.length === 0)
+      return res.status(401).json({ error: "Correo o contraseña incorrectos" });
 
-    if (rows.length === 0) {
-      return res.status(401).json({ error: "Usuario no encontrado" });
-    }
-
-    const user = rows[0];
-    const isMatch = await bcrypt.compare(pass, user.pass);
-
-    if (!isMatch) {
-      return res.status(401).json({ error: "Contraseña incorrecta" });
-    }
-
-    // Generar token JWT
-    const token = jwt.sign(
-      { id: user.idUsuario, correo: user.correo },
-      process.env.JWT_SECRET,
-      { expiresIn: "2h" }
-    );
-
-    console.log(`Login correcto para: ${user.correo}`);
+    const usuario = rows[0];
+    const match = await bcrypt.compare(pass, usuario.pass);
+    if (!match)
+      return res.status(401).json({ error: "Correo o contraseña incorrectos" });
 
     res.json({
-      mensaje: "Login exitoso",
-      token,
+      message: "Login correcto",
       usuario: {
-        id: user.idUsuario,
-        nombre: user.nombre,
+        idUsuario: usuario.idUsuario,
+        nombre: usuario.nombre,
+        correo: usuario.correo,
+        foto_perfil: usuario.foto_perfil || null,
+        bio: usuario.bio || "",
       },
     });
   } catch (error) {
-    console.error("Error detallado en /login:", error);
-    res.status(500).json({ error: error.message });
+    console.error("⚠️ Error en /login:", error.message);
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  }
+});
+
+/* 
+   SUBIR / ACTUALIZAR FOTO DE PERFIL
+ */
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, "uploads/fotos"),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}${ext}`);
+  },
+});
+const upload = multer({ storage });
+
+router.post("/foto/:id", upload.single("foto"), async (req, res) => {
+  const foto = req.file ? req.file.filename : null;
+
+  if (!foto) return res.status(400).json({ error: "No se recibió ninguna imagen" });
+
+  try {
+    await db.query("UPDATE usuario SET foto_perfil = ? WHERE idUsuario = ?", [foto, req.params.id]);
+    res.json({ mensaje: "Foto actualizada correctamente", archivo: foto });
+  } catch (error) {
+    console.error("⚠️ Error al subir foto:", error);
+    res.status(500).json({ error: "Error al subir la foto" });
+  }
+});
+
+/* 
+   ACTUALIZAR BIOGRAFÍA
+ */
+router.put("/bio/:id", async (req, res) => {
+  const { bio } = req.body;
+  try {
+    await db.query("UPDATE usuario SET bio = ? WHERE idUsuario = ?", [bio, req.params.id]);
+    res.json({ mensaje: "Biografía actualizada correctamente" });
+  } catch (error) {
+    console.error("⚠️ Error al actualizar bio:", error);
+    res.status(500).json({ error: "Error al actualizar biografía" });
+  }
+});
+
+/* 
+   OBTENER RESEÑAS DEL USUARIO
+ */
+router.get("/resenas/:id", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT r.idResena, r.contenido, r.calificacion, p.titulo, p.portada_url
+       FROM resena r 
+       JOIN pelicula p ON r.idPelicula = p.idPelicula
+       WHERE r.idUsuario = ? 
+       ORDER BY r.fecha DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("⚠️ Error al obtener reseñas:", error);
+    res.status(500).json({ error: "Error al obtener reseñas" });
+  }
+});
+
+/* 
+   OBTENER PERFIL DE USUARIO
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT idUsuario, nombre, correo, foto_perfil, bio FROM usuario WHERE idUsuario = ?",
+      [req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: "Usuario no encontrado" });
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("⚠️ Error al obtener perfil:", error);
+    res.status(500).json({ error: "Error al obtener perfil" });
   }
 });
 
