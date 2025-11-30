@@ -1,8 +1,18 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+  Animated,
+  Easing,
+} from "react-native";
 import axios from "axios";
 import { useRouter } from "expo-router";
-import { AuthProvider, useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
   const [correo, setCorreo] = useState("");
@@ -10,32 +20,77 @@ export default function Login() {
   const router = useRouter();
   const { login } = useAuth();
 
+  // 💫 Animación del logo
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 5,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleLogin = async () => {
+    if (!correo.trim() || !pass.trim()) {
+      Alert.alert("Error", "Por favor completá todos los campos.");
+      return;
+    }
+
     try {
-      const response = await axios.post("http://192.168.100.150:3000/api/usuarios/login", {
+      const response = await axios.post("http://192.168.100.169:3000/api/usuarios/login", {
         correo,
         pass,
       });
-      Alert.alert("🎬 Éxito", "Login exitoso. Bienvenido a CineTrack.");
-      login(correo);
-      router.push("/Dashboard");
-    } catch (error) {
+
+      const usuario = response.data.usuario;
+
+      if (usuario) {
+        await login(usuario);
+        Alert.alert("🎬 Éxito", `Bienvenido, ${usuario.nombre}!`);
+        router.push("/dashboard");
+      } else {
+        Alert.alert("Error", "Respuesta inesperada del servidor.");
+      }
+    } catch (error: any) {
+      console.error("Error al iniciar sesión:", error.message);
       Alert.alert("Error", "Correo o contraseña incorrectos");
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>🎬 CineTrack</Text>
+      {/* 🎬 Logo animado */}
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
+        <Image
+          source={require("../../assets/images/cinetrack-logo.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
       <Text style={styles.subtitle}>Tu universo cinematográfico, siempre contigo.</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Correo electrónico"
         placeholderTextColor="#aaa"
+        keyboardType="email-address"
         onChangeText={setCorreo}
         value={correo}
+        autoCapitalize="none"
       />
+
       <TextInput
         style={styles.input}
         placeholder="Contraseña"
@@ -49,7 +104,7 @@ export default function Login() {
         <Text style={styles.buttonText}>Iniciar Sesión</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/registrer")}>
+      <TouchableOpacity onPress={() => router.push("/register")}>
         <Text style={styles.link}>¿No tenés cuenta? Registrate</Text>
       </TouchableOpacity>
     </View>
@@ -64,10 +119,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 24,
   },
-  logo: {
-    color: "#3FB7FF",
-    fontSize: 30,
-    fontWeight: "bold",
+  logoImage: {
+    width: 190,
+    height: 90,
     marginBottom: 10,
   },
   subtitle: {

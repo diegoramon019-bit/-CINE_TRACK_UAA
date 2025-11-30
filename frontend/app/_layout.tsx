@@ -3,7 +3,6 @@ import { ActivityIndicator, View, Animated, Easing } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
-// 🔹 Layout raíz que envuelve toda la app
 export default function RootLayout() {
   return (
     <AuthProvider>
@@ -12,19 +11,19 @@ export default function RootLayout() {
   );
 }
 
-// 🔹 Controla si renderizar layout público o privado
 function AuthHandler() {
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null); // 👈 ahora acepta objeto
 
-  // Espera a que AuthContext cargue el usuario persistente
+  // ⏳ Simula la carga inicial (pantalla de splash)
   useEffect(() => {
-    setTimeout(() => setIsLoading(false), 800); // simula carga de sesión
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
   }, []);
 
-  // 🔹 Animación al cambiar de estado (login/logout)
+  // 🌈 Transición suave entre pantallas (login ↔ dashboard)
   useEffect(() => {
     Animated.timing(fadeAnim, {
       toValue: 0,
@@ -42,23 +41,29 @@ function AuthHandler() {
     });
   }, [user]);
 
-  // 🔄 Pantalla de carga mientras se verifica sesión
+  // 💠 Pantalla de carga inicial
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0D0D0D" }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "#0D0D0D",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <ActivityIndicator size="large" color="#3FB7FF" />
       </View>
     );
   }
 
+  // 🚪 Decide si mostrar la parte pública o privada
   return (
     <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
       <Stack screenOptions={{ headerShown: false }}>
-        {/* 🔒 Usuario no logueado → layout público */}
         {!currentUser ? (
           <Stack.Screen name="(public)" />
         ) : (
-          // 🔓 Usuario logueado → layout privado
           <Stack.Screen name="(private)" />
         )}
       </Stack>

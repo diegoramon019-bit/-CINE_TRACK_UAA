@@ -21,7 +21,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/*  Botón Crear Cuenta */}
-      <TouchableOpacity style={styles.buttonOutline} onPress={() => router.push("/registrer")}>
+      <TouchableOpacity style={styles.buttonOutline} onPress={() => router.push("/register")}>
         <Text style={styles.buttonOutlineText}>Crear Cuenta</Text>
       </TouchableOpacity>
     </View>
